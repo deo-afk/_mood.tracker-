@@ -1,0 +1,177 @@
+<!DOCTYPE htmt>
+<html
+lang= "en>
+<head>
+// App.js
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, FlatList, Alert, Animated } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const moods = [
+  { emoji: "😄", label: "Happy", color: "#FFD700" },
+  { emoji: "😔", label: "Sad", color: "#87CEEB" },
+  { emoji: "😡", label: "Angry", color: "#FF6347" },
+  { emoji: "😴", label: "Tired", color: "#9370DB" },
+  { emoji: "🤩", label: "Excited", color: "#FF69B4" },
+];
+
+const quotes = {
+  Happy: "Keep smiling – it makes people wonder what you're up to.",
+  Sad: "Every storm runs out of rain.",
+  Angry: "For every minute you are angry, you lose sixty seconds of happiness.",
+  Tired: "Rest when you're weary. Refresh and renew yourself.",
+  Excited: "The future belongs to those who believe in the beauty of their dreams❤️‍🩹.",
+};
+
+export default function App() {
+  const [selectedMood, setSelectedMood] = useState(null);
+  const [history, setHistory] = useState([]);
+  const fadeAnim = new Animated.Value(0);
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  useEffect(() => {
+    if (selectedMood) {
+      saveMood(selectedMood);
+      fadeIn();
+    }
+  }, [selectedMood]);
+
+  const fadeIn = () => {
+    fadeAnim.setValue(0);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const saveMood = async (mood) => {
+    const today = new Date().toLocaleDateString();
+    const newEntry = { date: today, mood: mood.label };
+    const newHistory = [newEntry, ...history.slice(0, 6)];
+    setHistory(newHistory);
+    await AsyncStorage.setItem("moodHistory", JSON.stringify(newHistory));
+  };
+
+  const loadHistory = async () => {
+    const saved = await AsyncStorage.getItem("moodHistory");
+    if (saved) setHistory(JSON.parse(saved));
+  };
+
+  const clearHistory = async () => {
+    Alert.alert("Clear Mood History", "Are you sure?", [
+      { text: "Cancel" },
+      {
+        text: "Yes",
+        onPress: async () => {
+          await AsyncStorage.removeItem("moodHistory");
+          setHistory([]);
+        },
+      },
+    ]);
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>🌈 How are you feeling today?</Text>
+      <View style={styles.moodRow}>
+        {moods.map((mood) => (
+          <TouchableOpacity
+            key={mood.label}
+            style={[styles.moodButton, { backgroundColor: mood.color }]}
+            onPress={() => setSelectedMood(mood)}
+          >
+            <Text style={styles.emoji}>{mood.emoji}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {selectedMood && (
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <Text style={[styles.quote, { color: selectedMood.color }]}>
+            "{quotes[selectedMood.label]}"
+          </Text>
+        </Animated.View>
+      )}
+
+      <Text style={styles.historyTitle}>📅 Your Mood This Week</Text>
+      {history.length === 0 ? (
+        <Text style={{ color: "#888" }}>No moods recorded yet.</Text>
+      ) : (
+        <FlatList
+          data={history}
+          keyExtractor={(_, index) => index.toString()}
+          renderItem={({ item }) => (
+            <Text style={styles.historyItem}>
+              {item.date}: <Text style={{ fontWeight: "bold" }}>{item.mood}</Text>
+            </Text>
+          )}
+        />
+      )}
+
+      <TouchableOpacity style={styles.clearButton} onPress={clearHistory}>
+        <Text style={{ color: "#fff" }}>Clear History</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    backgroundColor: "#fff",
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: "600",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  moodRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 30,
+  },
+  moodButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  emoji: {
+    fontSize: 28,
+  },
+  quote: {
+    fontSize: 18,
+    fontStyle: "italic",
+    textAlign: "center",
+    marginVertical: 20,
+  },
+  historyTitle: {
+    fontSize: 18,
+    fontWeight: "500",
+    marginBottom: 10,
+    marginTop: 30,
+  },
+  historyItem: {
+    fontSize: 16,
+    marginBottom: 5,
+  },
+  clearButton: {
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: "#333",
+    alignItems: "center",
+    borderRadius: 5,
+  },
+});
